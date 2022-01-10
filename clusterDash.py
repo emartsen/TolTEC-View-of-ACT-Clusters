@@ -46,8 +46,14 @@ scatDir = srcDir.joinpath("SecondaryCatalogs")
 actCat_Unfilt = Table.read(actDir.joinpath('DR5_cluster-catalog.fits'))
 w = np.where(actCat_Unfilt['decDeg'] < -28)[0]
 actCat_Unfilt.remove_rows(w)
+#cols2remove = ['y0tilde_err', 'fixed_SNR', 'fixed_err_y_c', 'template', 'tileName', 'zErr', 'zType', 'zSource', 'M500cCal', 'M500cCal_errPlus', 'M500cCal_errMinus', 'M500cUnc', 'M500cUnc_errPlus', 'M500cUnc_errMinus', 'M200mUnc', 'M200mUnc_errPlus', 'M200mUnc_errMinus', 'footprint_DESY3', 'footprint_HSCs19a', 'footprint_KiDSDR4', 'zCluster_delta', 'zCluster_errDelta', 'zCluster_source', 'RM', 'RM_LAMBDA', 'RM_LAMBDA_ERR', 'RMDESY3', 'RMDESY3_LAMBDA_CHISQ', 'RMDESY3_LAMBDA_CHISQ_E', 'CAMIRA', 'CAMIRA_N_mem', 'opt_RADeg', 'opt_decDeg', 'opt_positionSource', 'notes', 'knownLens', 'knownLensRefCode', 'warnings']
+#for c in cols2remove:
+#    del actCat_Unfilt[c]
+
 nRemoved = len(w)
 nClusters = len(actCat_Unfilt)
+
+IndList_Unfilt = list(np.arange(0, len(actCat_Unfilt)))
 
 #Add columns for ancillary data 
 SecondaryCatalogs = os.listdir(scatDir) 
@@ -100,10 +106,9 @@ TABLE = dbc.Jumbotron(
     ]
 )
 
-def _update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, actCat):
+def _update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, IndList):
 
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+    actCat = actCat_Unfilt[IndList]
    
     #create masks for the necessary components
     catalogs = {}
@@ -214,7 +219,7 @@ CLUSTER_PLOT = [
                           cid = 0,
                           checkedCatalogs="ALL",
                           graphAxes='Mass/Redshift ',
-                          actCat = actCat_Unfilt)
+                          IndList = IndList_Unfilt)
             ),
         ],
         style={"marginTop": 0, "marginBottom": 0},
@@ -498,35 +503,50 @@ def DefData(RA_Min, RA_Max, DEC_Max, DEC_Min, Z_Max, Z_Min, MASS_Max, MASS_Min):
     if MASS_Max == None:
         MASS_Max = np.max(actCat_Unfilt['M500cUPP']) 
     
-    
-    actCat = actCat_Unfilt.copy()
+    IndList = list(np.arange(0, len(actCat_Unfilt)))
     
     #Filtering the data based on parameters given
-    n = np.where(actCat['RADeg'] < RA_Min)[0]
-    actCat.remove_rows(n)
-    m = np.where(actCat['RADeg'] > RA_Max)[0]
-    actCat.remove_rows(m)
+    n = np.where(actCat_Unfilt['RADeg'] < RA_Min)[0]
+    for i in n:
+        if i in IndList:
+            IndList.remove(i)
+            
+    m = np.where(actCat_Unfilt['RADeg'] > RA_Max)[0]
+    for i in m:
+        if i in IndList:
+            IndList.remove(i)
     
-    n1 = np.where(actCat['decDeg'] < DEC_Min)[0]
-    actCat.remove_rows(n1)
-    m1 = np.where(actCat['decDeg'] > DEC_Max)[0]
-    actCat.remove_rows(m1)
+    n1 = np.where(actCat_Unfilt['decDeg'] < DEC_Min)[0]
+    for i in n1:
+        if i in IndList:
+            IndList.remove(i)
+            
+    m1 = np.where(actCat_Unfilt['decDeg'] > DEC_Max)[0]
+    for i in m1:
+        if i in IndList:
+            IndList.remove(i)
     
-    n2 = np.where(actCat['z'] < Z_Min)[0]
-    actCat.remove_rows(n2)
-    m2 = np.where(actCat['z'] > Z_Max)[0]
-    actCat.remove_rows(m2)
+    n2 = np.where(actCat_Unfilt['z'] < Z_Min)[0]
+    for i in n2:
+        if i in IndList:
+            IndList.remove(i)
+            
+    m2 = np.where(actCat_Unfilt['z'] > Z_Max)[0]
+    for i in m2:
+        if i in IndList:
+            IndList.remove(i)
     
-    
-    n3 = np.where(actCat['M500cUPP'] < MASS_Min)[0]
-    actCat.remove_rows(n3)
-    m3 = np.where(actCat['M500cUPP'] > MASS_Max)[0]
-    actCat.remove_rows(m3)
+    n3 = np.where(actCat_Unfilt['M500cUPP'] < MASS_Min)[0]
+    for i in n3:
+        if i in IndList:
+            IndList.remove(i)
+            
+    m3 = np.where(actCat_Unfilt['M500cUPP'] > MASS_Max)[0]
+    for i in m3:
+        if i in IndList:
+            IndList.remove(i)
 
-    #Convert the table to json
-    actCat = actCat.to_pandas().to_json()
-    
-    return actCat
+    return IndList
 
 #callback that identifies which ACT cluster was clicked on or returns 0
 @app.callback(
@@ -537,11 +557,10 @@ def DefData(RA_Min, RA_Max, DEC_Max, DEC_Min, Z_Max, Z_Min, MASS_Max, MASS_Min):
     ],
     State('PlotAxis', 'value')
 )
-def holdOnCluster(cid_clicked, actCat, graphAxes):
+def holdOnCluster(cid_clicked, IndList, graphAxes):
 
     
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+    actCat = actCat_Unfilt[IndList]
 
     if graphAxes == "Mass/Redshift ":
         xAxis, yAxis = 'M500cUPP','z'
@@ -581,10 +600,9 @@ def saveClickdata(cid_clicked):
               [Input("browser_json_data", "data"),
                Input("cluster_data", "data")
                ])
-def update_table(cid, actCat):
+def update_table(cid, IndList):
 
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+    actCat = actCat_Unfilt[IndList]
     
     name = actCat[cid]['name']
     ra = actCat[cid]['RADeg']
@@ -629,8 +647,8 @@ def update_table(cid, actCat):
         Input("cluster_data", "data")
     ]
 )
-def update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, actCat):
-    return _update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, actCat)
+def update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, IndList):
+    return _update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, IndList)
 
 
 #PROFILE_PLOT
@@ -644,10 +662,7 @@ def update_Arrayfigure(cid_clicked, cid, checkedCatalogs, graphAxes, actCat):
                Input("cluster_data", "data")
               ]
 )
-def updateProfileFigure(cid, time, radius, atmFactor, radAvg, velocity, actCat):
-
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+def updateProfileFigure(cid, time, radius, atmFactor, radAvg, velocity, IndList):
     
     if(time == None):
         time = 1.
@@ -665,7 +680,7 @@ def updateProfileFigure(cid, time, radius, atmFactor, radAvg, velocity, actCat):
     #should we show the radial average instead?
     showRadialAverage = radAvg.count('radial')
 
-    c = getCluster(actCat, cid, velocity=velocity)
+    c = getCluster(IndList, cid, velocity=velocity)
     npts=100
     thetaArcmin = np.linspace(0.,1.2*radius,npts)
     y = c.y(thetaArcmin)
@@ -809,10 +824,9 @@ def getImageParameters(radiusArcmin):
 
 
 #@cache_func
-def getCluster(actCat, cid, velocity=0.):
+def getCluster(IndList, cid, velocity=0.):
     
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+    actCat = actCat_Unfilt[IndList]
     
     if(cid is None):
         cid = 0
@@ -969,15 +983,12 @@ def generateImage(z,x,y,title,width,height,cbTitle="deltaT [uK]"):
                Input("input_peculiarVelocity", "value"),
                Input("cluster_data", "data")
                ])
-def updateClusterImage2p0(cid, time, radius, atmFactor, velocity, actCat):
-    
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+def updateClusterImage2p0(cid, time, radius, atmFactor, velocity, IndList):
     
     if(velocity == None):
         velocity=0.
     
-    cluster = getCluster(actCat, cid, velocity=velocity)
+    cluster = getCluster(IndList, cid, velocity=velocity)
     
     #get TolTEC maps
     image, shapes, depths = getTolTECmap(2.0, cluster, time, radius, atmFactor)
@@ -996,15 +1007,12 @@ def updateClusterImage2p0(cid, time, radius, atmFactor, velocity, actCat):
                Input("input_peculiarVelocity", "value"),
                Input("cluster_data", "data")
                ])
-def updateClusterImage1p4(cid, time, radius, atmFactor, velocity, actCat):
-    
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
-    
+def updateClusterImage1p4(cid, time, radius, atmFactor, velocity, IndList):
+
     if(velocity == None):
         velocity=0.
         
-    cluster = getCluster(actCat, cid, velocity)
+    cluster = getCluster(IndList, cid, velocity)
         
     #get TolTEC maps
     image, shapes, depths = getTolTECmap(1.4, cluster, time, radius, atmFactor)
@@ -1023,15 +1031,12 @@ def updateClusterImage1p4(cid, time, radius, atmFactor, velocity, actCat):
                Input("input_peculiarVelocity", "value"),
                Input("cluster_data", "data")
                ])
-def updateClusterImage1p1(cid, time, radius, atmFactor, velocity, actCat):
-    
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+def updateClusterImage1p1(cid, time, radius, atmFactor, velocity, IndList):
     
     if(velocity == None):
         velocity=0.
     
-    cluster = getCluster(actCat, cid, velocity=velocity)
+    cluster = getCluster(IndList, cid, velocity=velocity)
         
     #get TolTEC maps
     image, shapes, depths = getTolTECmap(1.1, cluster, time, radius, atmFactor)
@@ -1066,10 +1071,7 @@ def updateDustyGalaxyImage(radius):
                Input("input_peculiarVelocity", "value"),
                Input("cluster_data", "data")
                ])
-def updateBigClusterImage(cid, time, radius, atmFactor, s2s, band, smoothingFWHM, velocity, actCat):
-    
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+def updateBigClusterImage(cid, time, radius, atmFactor, s2s, band, smoothingFWHM, velocity, IndList):
     
     if(velocity == None):
         velocity=0.
@@ -1088,7 +1090,7 @@ def updateBigClusterImage(cid, time, radius, atmFactor, s2s, band, smoothingFWHM
         b = 2.0
         title = "2.0mm Array Image"
     
-    cluster = getCluster(actCat, cid, velocity=velocity)
+    cluster = getCluster(IndList, cid, velocity=velocity)
         
     #get TolTEC maps
     image, shapes, depths = getTolTECmap(b, cluster, time, radius, atmFactor,
@@ -1118,15 +1120,12 @@ def updateBigClusterImage(cid, time, radius, atmFactor, s2s, band, smoothingFWHM
                Input("input_peculiarVelocity", "value"),
                Input("cluster_data", "data")
                ])
-def updateSpectrumFigure(cid, velocity, actCat):
-    
-    if isinstance(actCat, str):
-        actCat = Table.from_pandas(pd.read_json(actCat))
+def updateSpectrumFigure(cid, velocity, IndList):
     
     if(velocity == None):
         velocity=0.
         
-    cluster = getCluster(actCat, cid, velocity)
+    cluster = getCluster(IndList, cid, velocity)
     y0 = cluster.y(0.)
     
     #for the plot x axis
